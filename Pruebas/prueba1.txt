@@ -1,0 +1,18 @@
+' Caso: declaración
+DIM contador AS INTEGER
+contador = 5
+
+' Caso: bucle FOR
+FOR i = 1 TO 10 STEP 2
+    PRINT i
+NEXT i
+
+' Caso: número real
+DIM precio AS DOUBLE
+precio = 3.14
+
+' Caso: comentario REM
+REM esto no debe generar tokens
+
+' Caso: error léxico
+x = @invalido
