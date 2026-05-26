@@ -6,6 +6,7 @@ DIM precio AS DOUBLE
 DIM nombre AS STRING
 DIM activo AS BOOLEAN
 CONST PI = 3.1416
+let @
 
 ' 2. ASIGNACIONES Y EXPRESIONES
 contador = (5 + 3) * 2
@@ -80,3 +81,20 @@ DIM AS INTEGER
 10 = contador
 FOR x = 1 10
 PRINT "Fin de la prueba"
+
+' 9. ARREGLOS
+DIM numeros(5) AS INTEGER
+DIM notas(3) AS DOUBLE
+LET numeros(0) = 10
+LET numeros(1) = 20
+LET numeros(5) = 99
+LET notas(0) = 9.5
+
+' 10. ERRORES SEMANTICOS CONTROLADOS
+DIM x AS INTEGER
+DIM x AS STRING
+CONST MAX = 100
+MAX = 200
+DIM edades(3) AS INTEGER
+LET edades(0) = "hola"
+y AS DOUBLE

@@ -7,7 +7,7 @@ public class FrontEnd {
     private static final String ARCHIVO = "Pruebas/prueba1.txt";
 
     public void analizarConParser() {
-        System.out.println("=== Analizador Sintáctico");
+        System.out.println("=== Analizador===\n");
         try {
             Reader lector = new BufferedReader(new FileReader(ARCHIVO));
             Parser parser = new Parser(new Lexer(lector));

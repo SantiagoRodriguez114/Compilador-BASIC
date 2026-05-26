@@ -1,12 +1,14 @@
 package analizador;
 import java_cup.runtime.*;
+import semantico.AnalizadorSemantico;
+import semantico.Simbolo;
 
 parser code {:
     private Symbol errorSimbolo;
+    public AnalizadorSemantico semantico = new AnalizadorSemantico();
 
     public void syntax_error(Symbol s) {
         errorSimbolo = s;
-
         System.out.println(
             "ERROR SINTACTICO: simbolo inesperado '"
             + (s.value != null ? s.value : "EOF")
@@ -37,65 +39,57 @@ terminal INTEGER, DOUBLE, STRING, BOOLEAN, SINGLE;
 terminal SUB, FUNCTION, RETURN, CALL;
 terminal PRINT, INPUT;
 terminal TRUE, FALSE;
-
 terminal SUMA, RESTA, MULT, DIV, DIV_ENTERA, POTENCIA, MOD;
 terminal IGUAL;
-
 terminal AND, OR, NOT, XOR;
 terminal CONCAT;
-
 terminal PAR_IZQ, PAR_DER;
 terminal COMA, PUNTO_COMA, DOS_PUNTOS;
-
 terminal String  OP_REL;
 terminal String  IDENTIFICADOR;
 terminal Integer ENTERO;
 terminal Double  REAL;
 terminal String  CADENA;
-
 terminal EOL;
+terminal ERROR;
 
+non terminal          programa;
+non terminal          lista_sentencias;
+non terminal          sentencia;
+non terminal          declaracion;
+non terminal          asignacion;
+non terminal          sent_asig_arreglo;
+non terminal          sent_if;
+non terminal          sent_for;
+non terminal          sent_while;
+non terminal          sent_do;
+non terminal          sent_print;
+non terminal          sent_input;
+non terminal          sent_sub;
+non terminal          sent_function;
+non terminal          lista_params;
+non terminal          lista_expresiones;
+non terminal String   tipo;
+non terminal          fin_linea;
+non terminal Object   expresion;
 
-non terminal programa;
-non terminal lista_sentencias;
-non terminal sentencia;
-
-non terminal declaracion;
-non terminal asignacion;
-
-non terminal sent_if;
-non terminal sent_for;
-non terminal sent_while;
-non terminal sent_do;
-
-non terminal sent_print;
-non terminal sent_input;
-
-non terminal sent_sub;
-non terminal sent_function;
-
-non terminal lista_params;
-non terminal lista_expresiones;
-
-non terminal tipo;
-non terminal fin_linea;
-
-non terminal Object expresion;
-
-precedence left OR, XOR;
-precedence left AND;
+precedence left  OR, XOR;
+precedence left  AND;
 precedence right NOT;
-precedence left IGUAL, OP_REL;
-precedence left CONCAT;
-precedence left SUMA, RESTA;
-precedence left MULT, DIV, DIV_ENTERA, MOD;
+precedence left  IGUAL, OP_REL;
+precedence left  CONCAT;
+precedence left  SUMA, RESTA;
+precedence left  MULT, DIV, DIV_ENTERA, MOD;
 precedence right POTENCIA;
 
 start with programa;
 
 programa ::=
       lista_sentencias
-        {: System.out.println("Programa analizado correctamente."); :}
+        {:
+            System.out.println("\nPrograma analizado correctamente.");
+            parser.semantico.mostrarTabla();
+        :}
     |
         {: System.out.println("Programa vacio."); :}
 ;
@@ -107,21 +101,16 @@ lista_sentencias ::=
     | fin_linea
 ;
 
-fin_linea ::=
-    EOL
-;
+fin_linea ::= EOL ;
 
 sentencia ::=
       declaracion fin_linea
-
     | asignacion fin_linea
+    | sent_asig_arreglo fin_linea
 
     | sent_if
-
     | sent_for
-
     | sent_while
-
     | sent_do
 
     | sent_print fin_linea
@@ -131,7 +120,6 @@ sentencia ::=
         {: System.out.println("INPUT"); :}
 
     | sent_sub
-
     | sent_function
 
     | CALL IDENTIFICADOR:id fin_linea
@@ -152,32 +140,55 @@ sentencia ::=
     | EXIT DO fin_linea
         {: System.out.println("EXIT DO"); :}
 
+    | END fin_linea
+        {: System.out.println("END del programa"); :}
+
     | error fin_linea
         {: System.out.println("Sentencia invalida, se continua el analisis."); :}
 ;
 
 declaracion ::=
-      DIM IDENTIFICADOR:id AS tipo
-        {: System.out.println("Declaracion de variable: " + id); :}
+      DIM IDENTIFICADOR:id AS tipo:t
+        {:
+            parser.semantico.declarar(t, id);
+        :}
+
+    | DIM IDENTIFICADOR:id PAR_IZQ ENTERO:n PAR_DER AS tipo:t
+        {:
+            parser.semantico.declararArreglo(t, id, n);
+        :}
 
     | CONST IDENTIFICADOR:id IGUAL expresion:e
-        {: System.out.println("Constante: " + id + " = " + e); :}
+        {:
+            parser.semantico.declararConstante(id, e);
+        :}
 ;
 
 asignacion ::=
       IDENTIFICADOR:id IGUAL expresion:e
-        {: System.out.println("Asignacion: " + id + " = " + e); :}
+        {:
+            parser.semantico.asignar(id, e);
+        :}
 
     | LET IDENTIFICADOR:id IGUAL expresion:e
-        {: System.out.println("Asignacion LET: " + id + " = " + e); :}
+        {:
+            parser.semantico.asignar(id, e);
+        :}
+;
+
+sent_asig_arreglo ::=
+      LET IDENTIFICADOR:id PAR_IZQ expresion:idx PAR_DER IGUAL expresion:e
+        {:
+            parser.semantico.asignarArreglo(id, idx, e);
+        :}
 ;
 
 tipo ::=
-      INTEGER {: System.out.println("Tipo: INTEGER"); :}
-    | DOUBLE  {: System.out.println("Tipo: DOUBLE");  :}
-    | STRING  {: System.out.println("Tipo: STRING");  :}
-    | BOOLEAN {: System.out.println("Tipo: BOOLEAN"); :}
-    | SINGLE  {: System.out.println("Tipo: SINGLE");  :}
+      INTEGER {: RESULT = "INTEGER"; :}
+    | DOUBLE  {: RESULT = "DOUBLE";  :}
+    | STRING  {: RESULT = "STRING";  :}
+    | BOOLEAN {: RESULT = "BOOLEAN"; :}
+    | SINGLE  {: RESULT = "SINGLE";  :}
 ;
 
 sent_if ::=
@@ -211,25 +222,37 @@ sent_if ::=
 ;
 
 sent_for ::=
-      FOR IDENTIFICADOR:id IGUAL expresion TO expresion fin_linea
+      FOR IDENTIFICADOR:id IGUAL expresion:e1 TO expresion:e2 fin_linea
       lista_sentencias
       NEXT fin_linea
-        {: System.out.println("FOR " + id + " sin STEP"); :}
+        {:
+            parser.semantico.declararSiNoExiste(id, "INTEGER");
+            System.out.println("FOR " + id + " sin STEP");
+        :}
 
-    | FOR IDENTIFICADOR:id IGUAL expresion TO expresion fin_linea
+    | FOR IDENTIFICADOR:id IGUAL expresion:e1 TO expresion:e2 fin_linea
       lista_sentencias
       NEXT IDENTIFICADOR fin_linea
-        {: System.out.println("FOR " + id + " sin STEP"); :}
+        {:
+            parser.semantico.declararSiNoExiste(id, "INTEGER");
+            System.out.println("FOR " + id + " sin STEP");
+        :}
 
-    | FOR IDENTIFICADOR:id IGUAL expresion TO expresion STEP expresion fin_linea
+    | FOR IDENTIFICADOR:id IGUAL expresion:e1 TO expresion:e2 STEP expresion:e3 fin_linea
       lista_sentencias
       NEXT fin_linea
-        {: System.out.println("FOR " + id + " con STEP"); :}
+        {:
+            parser.semantico.declararSiNoExiste(id, "INTEGER");
+            System.out.println("FOR " + id + " con STEP");
+        :}
 
-    | FOR IDENTIFICADOR:id IGUAL expresion TO expresion STEP expresion fin_linea
+    | FOR IDENTIFICADOR:id IGUAL expresion:e1 TO expresion:e2 STEP expresion:e3 fin_linea
       lista_sentencias
       NEXT IDENTIFICADOR fin_linea
-        {: System.out.println("FOR " + id + " con STEP"); :}
+        {:
+            parser.semantico.declararSiNoExiste(id, "INTEGER");
+            System.out.println("FOR " + id + " con STEP");
+        :}
 ;
 
 sent_while ::=
@@ -296,78 +319,221 @@ lista_params ::=
 ;
 
 lista_expresiones ::=
-      lista_expresiones COMA expresion
+      lista_expresiones COMA       expresion
     | lista_expresiones PUNTO_COMA expresion
     | expresion
 ;
 
 expresion ::=
+
       expresion:e1 SUMA expresion:e2
-        {: RESULT = e1.toString() + " + " + e2.toString(); :}
+        {:
+            if (e1 instanceof Integer && e2 instanceof Integer)
+                RESULT = (Integer)e1 + (Integer)e2;
+            else {
+                try {
+                    RESULT = Double.parseDouble(e1.toString())
+                           + Double.parseDouble(e2.toString());
+                } catch (Exception ex) {
+                    RESULT = e1.toString() + e2.toString();
+                }
+            }
+        :}
 
     | expresion:e1 RESTA expresion:e2
-        {: RESULT = e1.toString() + " - " + e2.toString(); :}
+        {:
+            if (e1 instanceof Integer && e2 instanceof Integer)
+                RESULT = (Integer)e1 - (Integer)e2;
+            else {
+                try {
+                    RESULT = Double.parseDouble(e1.toString())
+                           - Double.parseDouble(e2.toString());
+                } catch (Exception ex) {
+                    RESULT = 0;
+                }
+            }
+        :}
 
     | expresion:e1 MULT expresion:e2
-        {: RESULT = e1.toString() + " * " + e2.toString(); :}
+        {:
+            if (e1 instanceof Integer && e2 instanceof Integer)
+                RESULT = (Integer)e1 * (Integer)e2;
+            else {
+                try {
+                    RESULT = Double.parseDouble(e1.toString())
+                           * Double.parseDouble(e2.toString());
+                } catch (Exception ex) {
+                    RESULT = 0;
+                }
+            }
+        :}
 
     | expresion:e1 DIV expresion:e2
-        {: RESULT = e1.toString() + " / " + e2.toString(); :}
+        {:
+            try {
+                RESULT = Double.parseDouble(e1.toString())
+                       / Double.parseDouble(e2.toString());
+            } catch (Exception ex) {
+                RESULT = 0;
+            }
+        :}
 
     | expresion:e1 DIV_ENTERA expresion:e2
-        {: RESULT = e1.toString() + " \\ " + e2.toString(); :}
+        {:
+            try {
+                RESULT = (int)(Double.parseDouble(e1.toString())
+                       / Double.parseDouble(e2.toString()));
+            } catch (Exception ex) {
+                RESULT = 0;
+            }
+        :}
 
     | expresion:e1 MOD expresion:e2
-        {: RESULT = e1.toString() + " MOD " + e2.toString(); :}
+        {:
+            try {
+                RESULT = (Integer)e1 % (Integer)e2;
+            } catch (Exception ex) {
+                RESULT = 0;
+            }
+        :}
 
     | expresion:e1 POTENCIA expresion:e2
-        {: RESULT = e1.toString() + " ^ " + e2.toString(); :}
+        {:
+            try {
+                RESULT = Math.pow(
+                    Double.parseDouble(e1.toString()),
+                    Double.parseDouble(e2.toString())
+                );
+            } catch (Exception ex) {
+                RESULT = 0;
+            }
+        :}
 
     | expresion:e1 CONCAT expresion:e2
-        {: RESULT = e1.toString() + " & " + e2.toString(); :}
+        {:
+            RESULT = e1.toString() + e2.toString();
+        :}
 
     | expresion:e1 IGUAL expresion:e2
-        {: RESULT = e1.toString() + " = " + e2.toString(); :}
+        {:
+            RESULT = e1.equals(e2);
+        :}
 
     | expresion:e1 OP_REL:op expresion:e2
-        {: RESULT = e1.toString() + " " + op + " " + e2.toString(); :}
+        {:
+            try {
+                double a = Double.parseDouble(e1.toString());
+                double b = Double.parseDouble(e2.toString());
+                switch (op) {
+                    case "<":  RESULT = a < b;  break;
+                    case ">":  RESULT = a > b;  break;
+                    case "<=": RESULT = a <= b; break;
+                    case ">=": RESULT = a >= b; break;
+                    case "<>": RESULT = a != b; break;
+                    default:   RESULT = false;
+                }
+            } catch (Exception ex) {
+                RESULT = false;
+            }
+        :}
 
     | expresion:e1 AND expresion:e2
-        {: RESULT = e1.toString() + " AND " + e2.toString(); :}
+        {:
+            try {
+                RESULT = (Boolean)e1 && (Boolean)e2;
+            } catch (Exception ex) {
+                RESULT = false;
+            }
+        :}
 
     | expresion:e1 OR expresion:e2
-        {: RESULT = e1.toString() + " OR " + e2.toString(); :}
+        {:
+            try {
+                RESULT = (Boolean)e1 || (Boolean)e2;
+            } catch (Exception ex) {
+                RESULT = false;
+            }
+        :}
 
     | expresion:e1 XOR expresion:e2
-        {: RESULT = e1.toString() + " XOR " + e2.toString(); :}
+        {:
+            try {
+                RESULT = (Boolean)e1 ^ (Boolean)e2;
+            } catch (Exception ex) {
+                RESULT = false;
+            }
+        :}
 
     | NOT expresion:e
-        {: RESULT = "NOT " + e.toString(); :}
+        {:
+            try {
+                RESULT = !(Boolean)e;
+            } catch (Exception ex) {
+                RESULT = false;
+            }
+        :}
 
     | RESTA expresion:e
-        {: RESULT = "-" + e.toString(); :}
+        {:
+            if (e instanceof Integer)
+                RESULT = -((Integer)e);
+            else {
+                try {
+                    RESULT = -Double.parseDouble(e.toString());
+                } catch (Exception ex) {
+                    RESULT = 0;
+                }
+            }
+        :}
 
     | PAR_IZQ expresion:e PAR_DER
-        {: RESULT = "(" + e.toString() + ")"; :}
+        {:
+            RESULT = e;
+        :}
 
     | ENTERO:n
-        {: RESULT = n; :}
+        {:
+            RESULT = n;
+        :}
 
     | REAL:r
-        {: RESULT = r; :}
+        {:
+            RESULT = r;
+        :}
 
     | CADENA:c
-        {: RESULT = c; :}
+        {:
+            RESULT = c.replace("\"", "");
+        :}
 
     | TRUE
-        {: RESULT = Boolean.TRUE; :}
+        {:
+            RESULT = true;
+        :}
 
     | FALSE
-        {: RESULT = Boolean.FALSE; :}
+        {:
+            RESULT = false;
+        :}
+
+    | IDENTIFICADOR:id PAR_IZQ expresion:idx PAR_DER
+        {:
+            Simbolo s = parser.semantico.tabla.buscar(id);
+            if (s != null && s.esArreglo()) {
+                parser.semantico.verificarAccesoArreglo(id, idx);
+                RESULT = id + "[" + idx + "]";
+            } else {
+                RESULT = id + "(...)";
+            }
+        :}
 
     | IDENTIFICADOR:id
-        {: RESULT = id; :}
-
-    | IDENTIFICADOR:id PAR_IZQ lista_expresiones PAR_DER
-        {: RESULT = id + "(...)"; :}
+        {:
+            parser.semantico.verificarUso(id);
+            Simbolo s = parser.semantico.tabla.buscar(id);
+            if (s != null && s.getValor() != null)
+                RESULT = s.getValor();
+            else
+                RESULT = 0;
+        :}
 ;
