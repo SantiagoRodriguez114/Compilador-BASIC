@@ -186,15 +186,3 @@ Este proyecto es un ejemplo clásico de compilador didáctico. Su objetivo no es
 ## Conclusión
 
 `Compilador-BASIC` es un proyecto orientado al aprendizaje y la práctica de compiladores. Su valor principal radica en la integración de análisis léxico, análisis sintáctico y análisis semántico dentro de una misma solución, permitiendo comprender cómo un programa fuente se transforma y valida antes de ser ejecutado.
-
-## Licencia
-
-Este proyecto no especifica una licencia en el repositorio. Si se desea distribuirlo públicamente, se recomienda definir una licencia adecuada, como MIT o GPL, según el uso previsto.
-
-## Autor
-
-- Santiago Rodriguez
-
-## Nota
-
-Este README fue redactado con un enfoque técnico y académico para reflejar la finalidad real del proyecto: la construcción de un compilador para un subconjunto del lenguaje BASIC en Java.
